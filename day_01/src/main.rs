@@ -10,7 +10,7 @@ fn fuel(num: u64) -> Option<u64> {
 fn calc_fuel(num: u64) -> u64 {
     match fuel(num) {
         Some(n) if n > 0 => num + calc_fuel(n),
-        _ => num
+        _ => num,
     }
 }
 
