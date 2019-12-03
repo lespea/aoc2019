@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use csv::StringRecord;
 
@@ -50,9 +50,9 @@ impl Pos {
         self.x += 1;
     }
 
-    fn dist(&self) -> usize {
-        (self.x.abs() + self.y.abs()) as usize
-    }
+    //    fn dist(&self) -> usize {
+    //        (self.x.abs() + self.y.abs()) as usize
+    //    }
 
     fn reset(&mut self) {
         self.x = 0;
@@ -73,8 +73,9 @@ impl Inst {
 
     fn mark_spots(
         &self,
-        set: &mut HashSet<Pos>,
+        set: &mut HashMap<Pos, usize>,
         pos: &mut Pos,
+        steps: &mut usize,
         first: bool,
         lowest: &mut Option<usize>,
     ) {
@@ -86,11 +87,12 @@ impl Inst {
                 Down => pos.down(),
                 Left => pos.left(),
             };
+            *steps += 1;
 
             if first {
-                set.insert(pos.clone());
-            } else if set.contains(pos) {
-                let dist = pos.dist();
+                set.entry(pos.clone()).or_insert(*steps);
+            } else if let Some(o_dist) = set.get(pos) {
+                let dist = *steps + *o_dist;
                 let old = lowest.get_or_insert(dist);
                 if dist < *old {
                     *old = dist;
@@ -106,21 +108,23 @@ fn main() {
         .from_path("input")
         .expect("Couldn't open the input file");
 
-    let mut s = HashSet::with_capacity(500);
+    let mut s = HashMap::with_capacity(500);
     let mut lowest = None;
     let mut pos = Pos::default();
+    let mut steps = 0;
 
     let mut sr = StringRecord::with_capacity(1 << 4, 500);
 
     rdr.read_record(&mut sr).expect("Couldn't parse csv record");
     for rec in sr.iter() {
-        Inst::from_str(rec).mark_spots(&mut s, &mut pos, true, &mut lowest);
+        Inst::from_str(rec).mark_spots(&mut s, &mut pos, &mut steps, true, &mut lowest);
     }
 
     pos.reset();
+    steps = 0;
     rdr.read_record(&mut sr).expect("Couldn't parse csv record");
     for rec in sr.iter() {
-        Inst::from_str(rec).mark_spots(&mut s, &mut pos, false, &mut lowest);
+        Inst::from_str(rec).mark_spots(&mut s, &mut pos, &mut steps, false, &mut lowest);
     }
 
     println!("{:?}", lowest);
