@@ -1,3 +1,5 @@
+use std::process::exit;
+
 fn run(v: &mut Vec<usize>) {
     for i in (0..v.len()).step_by(4) {
         let op = v[i];
@@ -17,6 +19,14 @@ fn run(v: &mut Vec<usize>) {
     }
 }
 
+fn compute(v: &[usize], noun: usize, verb: usize) -> usize {
+    let mut nv = v.to_owned();
+    nv[2] = verb;
+    nv[1] = noun;
+    run(&mut nv);
+    nv[0]
+}
+
 fn main() {
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
@@ -32,14 +42,23 @@ fn main() {
     }
 
     nums.shrink_to_fit();
-    println!("{}", nums.len());
+    //    println!("{}", nums.len());
 
-    // Fix state
-    nums[2] = 2;
-    nums[1] = 12;
+    //    // Fix state
+    //    nums[2] = 2;
+    //    nums[1] = 12;
+    //
+    //    run(&mut nums);
+    //    println!("{}", nums[0]);
 
-    run(&mut nums);
-    println!("{}", nums[0]);
+    for noun in 0..=99 {
+        for verb in 0..=99 {
+            if compute(&nums, noun, verb) == 19_690_720 {
+                println!("{}", 100 * noun + verb);
+                exit(0)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
