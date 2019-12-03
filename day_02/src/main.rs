@@ -34,9 +34,12 @@ fn main() {
     nums.shrink_to_fit();
     println!("{}", nums.len());
 
-    println!("{:?}", nums);
+    // Fix state
+    nums[2] = 2;
+    nums[1] = 12;
+
     run(&mut nums);
-    println!("{:?}", nums);
+    println!("{}", nums[0]);
 }
 
 #[cfg(test)]
