@@ -109,6 +109,14 @@ impl Num {
             || self.d5 == self.d6
     }
 
+    fn has_only_double(self) -> bool {
+        (self.d1 == self.d2 && self.d2 != self.d3)
+            || (self.d2 == self.d3 && self.d3 != self.d4 && self.d3 != self.d1)
+            || (self.d3 == self.d4 && self.d4 != self.d5 && self.d4 != self.d2)
+            || (self.d4 == self.d5 && self.d5 != self.d6 && self.d5 != self.d3)
+            || (self.d5 == self.d6 && self.d6 != self.d4)
+    }
+
     fn done(self, that: Num) -> bool {
         self.d1 >= that.d1
             && self.d2 >= that.d2
@@ -128,8 +136,8 @@ fn main() {
     let mut findings = 0usize;
 
     while !start.done(end) {
-        if start.has_double() {
-//            println!("  Guest :: {}", start);
+        if start.has_only_double() {
+            //            println!("  Guest :: {}", start);
             findings += 1;
         }
 
