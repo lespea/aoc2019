@@ -1,7 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+pub type Bit = i16;
+
+mod error;
+
+mod computer;
+mod input;
+mod output;
