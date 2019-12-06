@@ -101,6 +101,7 @@ impl Num {
         }
     }
 
+    #[allow(unused)]
     fn has_double(self) -> bool {
         self.d1 == self.d2
             || self.d2 == self.d3
