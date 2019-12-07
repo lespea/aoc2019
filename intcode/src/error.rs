@@ -26,7 +26,7 @@ impl Display for CompError {
             )),
 
             InvalidOutputMode(cmd, bit, idx) => f.write_fmt(format_args!(
-                "The output mode cannot be direct for the cmd {} ({}) at addr {}",
+                "The output mode cannot be immediate for the cmd {} ({}) at addr {}",
                 cmd, bit, idx,
             )),
 
