@@ -1,15 +1,11 @@
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{Display, Error, Formatter};
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 
-use crate::computer::Cmd::Halt;
-use crate::error::CompError::{
-    AddrOverflow, InvalidAddress, InvalidInstruction, InvalidOutputMode,
-};
+use crate::error::CompError::*;
 use crate::error::{self, Result};
 use crate::input::Input;
 use crate::output::Output;
 use crate::Bit;
-use std::collections::VecDeque;
 
 pub struct Computer {
     pub mem: Vec<Bit>,
@@ -28,35 +24,23 @@ impl Computer {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.idx = 0;
+    pub fn step(&mut self) -> Result<bool> {
+        let ins = Instruction::try_from(self.mem[self.idx])?;
+        self.idx += 1;
+
+        ins.step(self)
     }
 
-    pub fn next(&mut self) -> Result<bool> {
-        let ins: Instruction = self.mem[self.idx].try_into()?;
-
-        ins.proc(
-            self.idx,
-            &mut self.mem,
-            self.input.as_mut(),
-            self.output.as_mut(),
-        )?;
-
-        self.idx += ins.inc;
-        Ok(ins.cmd == Cmd::Halt)
-    }
-
-    pub fn run(&mut self) -> Result<usize> {
-        let mut steps = 0;
-        while !self.next()? {
-            steps += 1;
-        }
-        Ok(steps)
+    pub fn run(&mut self) -> Result<()> {
+        while self.step()? {}
+        Ok(())
     }
 }
 
 #[test]
 fn simple() {
+    use std::collections::VecDeque;
+
     let mut c = Computer::new(
         vec![1002, 4, 3, 4, 33],
         Box::new(VecDeque::new()),
@@ -70,6 +54,94 @@ fn simple() {
         }
     };
     println!("Finished in {} steps: {:?}", steps, c.mem);
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
+pub enum Mode {
+    Immediate,
+    Position,
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Mode::*;
+
+        f.write_str(match self {
+            Immediate => "Immediate",
+            Position => "Position",
+        })
+    }
+}
+
+impl Mode {
+    fn g(b: u16, n: u16, pos: u8) -> Result<Self> {
+        match (b / n) % 10 {
+            1 => Ok(Mode::Immediate),
+            0 => Ok(Mode::Position),
+            _ => Err(InvalidMode(b, pos, n)),
+        }
+    }
+
+    fn m1(b: u16) -> Result<Self> {
+        Mode::g(b, 100, 1)
+    }
+
+    fn m2(b: u16) -> Result<Self> {
+        Mode::g(b, 1_000, 2)
+    }
+
+    fn m3(b: u16) -> Result<Self> {
+        Mode::g(b, 10_000, 3)
+    }
+
+    fn get(self, comp: &mut Computer, cmd: Cmd) -> Result<Bit> {
+        let idx = comp.idx;
+        comp.idx += 1;
+
+        let addr = comp
+            .mem
+            .get(idx)
+            .copied()
+            .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?;
+
+        match self {
+            Mode::Immediate => Ok(addr),
+            Mode::Position => usize::try_from(addr)
+                .map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
+                .and_then(|new_addr| {
+                    comp.mem
+                        .get(new_addr)
+                        .copied()
+                        .ok_or_else(|| InvalidAddress(idx, Some(addr), self, cmd))
+                }),
+        }
+    }
+
+    fn put(self, comp: &mut Computer, val: Bit, cmd: Cmd) -> Result<()> {
+        let idx = comp.idx;
+        comp.idx += 1;
+
+        let abit = comp
+            .mem
+            .get(idx)
+            .copied()
+            .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?;
+
+        if self != Mode::Position {
+            return Err(InvalidOutputMode(idx, cmd));
+        }
+
+        usize::try_from(abit)
+            .map_err(|_| InvalidAddress(idx, Some(abit), self, cmd))
+            .and_then(|a| {
+                comp.mem
+                    .get_mut(a)
+                    .ok_or_else(|| InvalidAddress(idx, Some(abit), self, cmd))
+                    .map(|o| {
+                        *o = val;
+                    })
+            })
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
@@ -96,64 +168,16 @@ impl Display for Cmd {
 }
 
 impl Cmd {
-    fn steps(&self) -> usize {
-        use Cmd::*;
-
-        match self {
-            Add => 3,
-            Multiply => 3,
-            Input => 1,
-            Output => 1,
-            Halt => 1,
-        }
+    #[inline]
+    pub fn is_stop(self) -> bool {
+        self == Cmd::Halt
     }
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
-enum Mode {
-    Immediate,
-    Position,
-}
-
-impl Mode {
-    fn m1(b: Bit) -> Self {
-        if (b / 100) & 1 > 0 {
-            Mode::Immediate
-        } else {
-            Mode::Position
-        }
-    }
-
-    fn m2(b: Bit) -> Self {
-        if (b / 1_000) & 1 > 0 {
-            Mode::Immediate
-        } else {
-            Mode::Position
-        }
-    }
-
-    fn m3(b: Bit) -> Self {
-        if (b / 10_000) & 1 > 0 {
-            Mode::Immediate
-        } else {
-            Mode::Position
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
-struct Modes {
-    pub mode1: Mode,
-    pub mode2: Mode,
-    pub mode3: Mode,
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 struct Instruction {
-    pub cmd: Cmd,
-    pub raw: Bit,
-    pub inc: usize,
-    pub modes: Modes,
+    cmd: Cmd,
+    raw: u16,
 }
 
 impl TryFrom<Bit> for Instruction {
@@ -162,118 +186,70 @@ impl TryFrom<Bit> for Instruction {
     fn try_from(b: Bit) -> Result<Self> {
         use Cmd::*;
 
-        let cmd = match b % 100 {
+        let raw = u16::try_from(b).map_err(|_| InvalidInstruction(b))?;
+
+        let cmd = match raw % 100 {
             1 => Add,
             2 => Multiply,
             3 => Input,
             4 => Output,
             99 => Halt,
-            b => return Err(InvalidInstruction(b)),
+            n => return Err(InvalidInstruction(n as Bit)),
         };
 
-        let inc = cmd.steps();
-
-        Ok(Instruction {
-            cmd,
-            raw: b,
-            inc,
-            modes: Modes {
-                mode1: Mode::m1(b),
-                mode2: Mode::m2(b),
-                mode3: Mode::m3(b),
-            },
-        })
+        Ok(Instruction { cmd, raw })
     }
 }
 
 impl Instruction {
-    #[inline]
-    fn bit(cmd: Cmd, idx: usize, mem: &Vec<Bit>, mode: Mode, pos: usize) -> Result<Bit> {
-        let b = mem[idx + pos];
-        println!("Idx: {}; mode: {:?}, pos: {} => raw: {}", idx, mode, pos, b);
-
-        match mode {
-            Mode::Immediate => Ok(b),
-            Mode::Position => usize::try_from(b)
-                .map_err(|_| InvalidAddress(cmd, b, pos))
-                .map(|i| mem[i]),
-        }
+    fn m1(self) -> Result<Mode> {
+        Mode::m1(self.raw)
     }
 
-    #[inline]
-    fn bit_addr(cmd: Cmd, idx: usize, mem: &Vec<Bit>, mode: Mode, pos: usize) -> Result<usize> {
-        let b = Instruction::bit(cmd, idx, mem, mode, pos)?;
-        Instruction::addr(b, cmd, pos, mem.len(), idx)
+    fn m2(self) -> Result<Mode> {
+        Mode::m2(self.raw)
     }
 
-    #[inline]
-    fn triple(&self, idx: usize, mem: &Vec<Bit>) -> Result<(Bit, Bit, Bit)> {
-        if self.modes.mode3 == Mode::Immediate {
-            return Err(InvalidOutputMode(self.cmd, self.raw, idx + 3));
-        }
+    fn m3(self) -> Result<Mode> {
+        Mode::m3(self.raw)
+    }
 
+    fn vals(self, comp: &mut Computer) -> Result<(Bit, Bit)> {
         Ok((
-            Instruction::bit(self.cmd, idx, mem, self.modes.mode1, 1)?,
-            Instruction::bit(self.cmd, idx, mem, self.modes.mode2, 2)?,
-            Instruction::bit(self.cmd, idx, mem, self.modes.mode3, 3)?,
+            self.m1()?.get(comp, self.cmd)?,
+            self.m2()?.get(comp, self.cmd)?,
         ))
     }
 
-    #[inline]
-    fn addr(bit: Bit, cmd: Cmd, pos: usize, m_len: usize, idx: usize) -> Result<usize> {
-        let addr = usize::try_from(bit).map_err(|_| InvalidAddress(cmd, bit, pos))?;
-
-        if addr > m_len {
-            Err(AddrOverflow(cmd, bit, m_len, idx))
-        } else {
-            Ok(addr)
-        }
-    }
-
-    #[inline]
-    fn triple_addr(&self, idx: usize, mem: &Vec<Bit>) -> Result<(Bit, Bit, usize)> {
-        let (n1, n2, n3) = self.triple(idx, mem)?;
-        println!("{:?} :: N1: {}; N2: {}; N3: {}", self.modes, n1, n2, n3);
-        Ok((
-            n1,
-            n2,
-            Instruction::addr(n3, self.cmd, 3, mem.len(), idx + 3)?,
-        ))
-    }
-
-    pub fn proc(
-        &self,
-        idx: usize,
-        mem: &mut Vec<Bit>,
-        input: &mut dyn Input,
-        output: &mut dyn Output,
-    ) -> Result<()> {
+    fn step(self, comp: &mut Computer) -> Result<bool> {
         use Cmd::*;
-
         match self.cmd {
             Add => {
-                let (n1, n2, dst) = self.triple_addr(idx, mem)?;
-                mem[dst] = n1 + n2;
+                let (n1, n2) = self.vals(comp)?;
+                self.m3()?.put(comp, n1 + n2, self.cmd)?;
             }
 
             Multiply => {
-                let (n1, n2, dst) = self.triple_addr(idx, mem)?;
-                mem[dst] = n1 * n2;
+                let (n1, n2) = self.vals(comp)?;
+                self.m3()?.put(comp, n1 * n2, self.cmd)?;
             }
 
             Input => {
-                let addr = Instruction::bit_addr(self.cmd, idx, mem, self.modes.mode1, 1)?;
-                mem[addr] = input.get_in();
+                let ival = comp.input.get_in();
+                self.m1()?.put(comp, ival, self.cmd)?;
             }
 
             Output => {
-                output.put_out(Instruction::bit(self.cmd, idx, mem, self.modes.mode1, 1)?);
+                let oval = self.m1()?.get(comp, self.cmd)?;
+                comp.output.put_out(oval);
             }
 
-            Halt => (),
-        }
+            Halt => {
+                comp.idx += 1;
+            }
+        };
 
-        Ok(())
+        Ok(self.cmd.is_stop())
     }
 }
 

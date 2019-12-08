@@ -2,6 +2,6 @@ pub type Bit = i16;
 
 mod error;
 
-mod computer;
+pub mod computer;
 mod input;
 mod output;
