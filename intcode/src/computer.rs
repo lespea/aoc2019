@@ -31,9 +31,12 @@ impl Computer {
         ins.step(self)
     }
 
-    pub fn run(&mut self) -> Result<()> {
-        while self.step()? {}
-        Ok(())
+    pub fn run(&mut self) -> Result<usize> {
+        let mut steps = 0;
+        while !self.step()? {
+            steps += 1;
+        }
+        Ok(steps + 1)
     }
 }
 
@@ -46,6 +49,7 @@ fn simple() {
         Box::new(VecDeque::new()),
         Box::new(Vec::with_capacity(5)),
     );
+
     let steps = match c.run() {
         Ok(s) => s,
         Err(e) => {
@@ -53,7 +57,10 @@ fn simple() {
             panic!(e)
         }
     };
-    println!("Finished in {} steps: {:?}", steps, c.mem);
+
+    assert_eq!(c.mem, vec![1002, 4, 3, 4, 99]);
+
+    assert_eq!(steps, 2);
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
@@ -244,12 +251,10 @@ impl Instruction {
                 comp.output.put_out(oval);
             }
 
-            Halt => {
-                comp.idx += 1;
-            }
+            Halt => return Ok(true),
         };
 
-        Ok(self.cmd.is_stop())
+        Ok(false)
     }
 }
 
@@ -260,33 +265,33 @@ mod test {
     #[test]
     fn mode_m1() {
         for n in &[100, 101, 110, 1100, 1110, 1111, 11111] {
-            assert_eq!(Mode::m1(*n), Mode::Immediate)
+            assert_eq!(Mode::m1(*n).unwrap(), Mode::Immediate)
         }
 
         for n in &[000, 001, 010, 1000, 1010, 1011, 11011, 1002] {
-            assert_eq!(Mode::m1(*n), Mode::Position)
+            assert_eq!(Mode::m1(*n).unwrap(), Mode::Position)
         }
     }
 
     #[test]
     fn mode_m2() {
         for n in &[1000, 1010, 1100, 1100, 1110, 1111, 11111, 1002] {
-            assert_eq!(Mode::m2(*n), Mode::Immediate)
+            assert_eq!(Mode::m2(*n).unwrap(), Mode::Immediate)
         }
 
         for n in &[0000, 0001, 0010, 10000, 10100, 10110, 10111] {
-            assert_eq!(Mode::m2(*n), Mode::Position)
+            assert_eq!(Mode::m2(*n).unwrap(), Mode::Position)
         }
     }
 
     #[test]
     fn mode_m3() {
         for n in &[10000, 10100, 11000, 11000, 11100, 11110, 11111] {
-            assert_eq!(Mode::m3(*n), Mode::Immediate)
+            assert_eq!(Mode::m3(*n).unwrap(), Mode::Immediate)
         }
 
         for n in &[00000, 00001, 00010, 00000, 00100, 00110, 01111, 1002] {
-            assert_eq!(Mode::m3(*n), Mode::Position)
+            assert_eq!(Mode::m3(*n).unwrap(), Mode::Position)
         }
     }
 }
