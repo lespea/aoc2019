@@ -8,6 +8,7 @@ use crate::Bit;
 pub enum CompError {
     AddrOverflow(Cmd, Bit, usize, usize),
     InvalidAddress(usize, Option<Bit>, Mode, Cmd),
+    InvalidIndex(usize),
     InvalidInstruction(Bit),
     InvalidMode(u16, u8, u16),
     InvalidOutputMode(usize, Cmd),
@@ -41,6 +42,8 @@ impl Display for CompError {
                 "The bit {} has an invalid digit {} for the mode at position {}",
                 bit, digit, pos,
             )),
+
+            InvalidIndex(idx) => f.write_fmt(format_args!("The current index {} is invalid", idx)),
         }
     }
 }

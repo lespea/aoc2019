@@ -25,7 +25,13 @@ impl Computer {
     }
 
     pub fn step(&mut self) -> Result<bool> {
-        let ins = Instruction::try_from(self.mem[self.idx])?;
+        let idx = self.idx;
+        let ins = Instruction::try_from(
+            self.mem
+                .get(idx)
+                .copied()
+                .ok_or_else(|| InvalidIndex(idx))?,
+        )?;
         self.idx += 1;
 
         ins.step(self)
