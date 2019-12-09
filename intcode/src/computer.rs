@@ -82,11 +82,10 @@ impl Computer<'_, '_> {
 fn simple() {
     use std::collections::VecDeque;
 
-    let mut c = Computer::new(
-        vec![1002, 4, 3, 4, 33],
-        Box::new(VecDeque::new()),
-        Box::new(Vec::with_capacity(5)),
-    );
+    let mut cin = VecDeque::new();
+    let mut cout = Vec::with_capacity(5);
+
+    let mut c = Computer::new(vec![1002, 4, 3, 4, 33], &mut cin, &mut cout);
 
     let steps = match c.run() {
         Ok(s) => s,

@@ -50,7 +50,7 @@ fn part1() {
 
     let mut max = 0;
 
-    const MIN_IN: Bit = 5;
+    const MIN_IN: Bit = 0;
     const MAX_IN: Bit = 5;
 
     for a in MIN_IN..MAX_IN {

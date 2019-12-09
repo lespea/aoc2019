@@ -3,9 +3,9 @@ use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
-use crate::Bit;
 use crate::error::CompError::OutputErr;
 use crate::error::Result;
+use crate::Bit;
 
 pub trait Output {
     fn put_out(&mut self, n: Bit) -> Result<()>;
