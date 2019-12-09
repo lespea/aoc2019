@@ -158,6 +158,12 @@ impl Mode {
         }
     }
 
+    fn addr(self, comp: &mut Computer, cmd:Cmd) -> Result<usize> {
+        let idx = comp.idx;
+        let addr = self.get(comp, cmd)?;
+        usize::try_from(addr).map_err(|_| InvalidAddress(idx,Some(addr),self,cmd))
+    }
+
     fn put(self, comp: &mut Computer, val: Bit, cmd: Cmd) -> Result<()> {
         let idx = comp.idx;
         comp.idx += 1;
@@ -191,6 +197,10 @@ pub enum Cmd {
     Multiply,
     Input,
     Output,
+    JumpTrue,
+    JumpFalse,
+    LessThan,
+    Equals,
     Halt,
 }
 
@@ -203,6 +213,10 @@ impl Display for Cmd {
             Multiply => "Multiply",
             Input => "Input",
             Output => "Output",
+            JumpTrue => "Jump If True",
+            JumpFalse => "Jump If False",
+            LessThan => "Less Than",
+            Equals => "Equals",
             Halt => "Halt",
         })
     }
@@ -234,6 +248,10 @@ impl TryFrom<Bit> for Instruction {
             2 => Multiply,
             3 => Input,
             4 => Output,
+            5 => JumpTrue,
+            6 => JumpFalse,
+            7 => LessThan,
+            8 => Equals,
             99 => Halt,
             n => return Err(InvalidInstruction(n as Bit)),
         };
@@ -283,6 +301,36 @@ impl Instruction {
             Output => {
                 let oval = self.m1()?.get(comp, self.cmd)?;
                 comp.output.put_out(oval)?;
+            }
+
+            JumpTrue => {
+                let tval = self.m1()?.get(comp, self.cmd)?;
+                if tval != 0 {
+                    let addr = self.m2()?.addr(comp, self.cmd)?;
+                    comp.idx = addr;
+                } else {
+                    comp.idx += 1;
+                }
+            }
+
+            JumpFalse => {
+                let tval = self.m1()?.get(comp, self.cmd)?;
+                if tval == 0 {
+                    let addr = self.m2()?.addr(comp, self.cmd)?;
+                    comp.idx = addr;
+                } else {
+                    comp.idx += 1;
+                }
+            }
+
+            LessThan => {
+                let (n1, n2) = self.vals(comp)?;
+                self.m3()?.put(comp, if n1 < n2{1}else {0}, self.cmd)?;
+            }
+
+            Equals => {
+                let (n1, n2) = self.vals(comp)?;
+                self.m3()?.put(comp, if n1 == n2{1}else {0}, self.cmd)?;
             }
 
             Halt => return Ok(true),

@@ -16,5 +16,8 @@ fn run(input: Bit) {
 
 fn main() {
     // Part 1
-    run(1);
+    //    run(1);
+
+    // Part 2
+    run(5);
 }
