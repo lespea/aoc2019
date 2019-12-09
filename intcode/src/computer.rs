@@ -121,36 +121,27 @@ impl Mode {
         Mode::g(b, 10_000, 3)
     }
 
+    fn get_addr(self, addr: usize, comp: &mut Computer) -> Result<Bit> {
+        // For now don't allow getting memory outside of our range
+        Ok(comp.mem.get(addr).copied().unwrap_or(0))
+    }
+
     fn get(self, comp: &mut Computer, cmd: Cmd) -> Result<Bit> {
         let idx = comp.idx;
         comp.idx += 1;
 
-        let addr = comp
-            .mem
-            .get(idx)
-            .copied()
-            .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?;
+        let addr = comp.mem.get(idx).copied().unwrap_or(0);
 
         match self {
             Mode::Immediate => Ok(addr),
 
             Mode::Position => usize::try_from(addr)
                 .map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
-                .and_then(|new_addr| {
-                    comp.mem
-                        .get(new_addr)
-                        .copied()
-                        .ok_or_else(|| InvalidAddress(idx, Some(addr), self, cmd))
-                }),
+                .and_then(|a| self.get_addr(a, comp)),
 
             Mode::Relative => usize::try_from(comp.rel + addr)
                 .map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
-                .and_then(|new_addr| {
-                    comp.mem
-                        .get(new_addr)
-                        .copied()
-                        .ok_or_else(|| InvalidAddress(idx, Some(addr), self, cmd))
-                }),
+                .and_then(|a| self.get_addr(a, comp)),
         }
     }
 
@@ -164,19 +155,32 @@ impl Mode {
         let idx = comp.idx;
         comp.idx += 1;
 
-        let abit = comp
-            .mem
-            .get(idx)
-            .copied()
-            .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?;
+        let abit = match self {
+            Mode::Position => comp
+                .mem
+                .get(idx)
+                .copied()
+                .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?,
 
-        if self != Mode::Position {
-            return Err(InvalidOutputMode(idx, cmd));
-        }
+            Mode::Relative => {
+                comp.rel
+                    + comp
+                        .mem
+                        .get(idx)
+                        .copied()
+                        .ok_or_else(|| InvalidAddress(idx, None, self, cmd))?
+            }
+
+            Mode::Immediate => return Err(InvalidOutputMode(idx, cmd)),
+        };
 
         usize::try_from(abit)
             .map_err(|_| InvalidAddress(idx, Some(abit), self, cmd))
             .and_then(|a| {
+                if comp.mem.len() < a {
+                    comp.mem.resize(a + 2, 0);
+                }
+
                 comp.mem
                     .get_mut(a)
                     .ok_or_else(|| InvalidAddress(idx, Some(abit), self, cmd))
