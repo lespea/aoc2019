@@ -1,6 +1,6 @@
-use crate::input::Input;
-use crate::output::Output;
-use std::sync::mpsc::channel;
+use crossbeam::unbounded;
+use crossbeam::Receiver;
+use crossbeam::Sender;
 
 pub type Bit = i32;
 
@@ -12,13 +12,13 @@ pub fn bit_from_bool(b: bool) -> Bit {
     }
 }
 
-pub fn chan_pair(start_ins: &[Bit]) -> (Box<dyn Input>, Box<dyn Output>) {
-    let (send, recv) = channel();
+pub fn chan_pair(start_ins: &[Bit]) -> (Receiver<Bit>, Sender<Bit>) {
+    let (send, recv) = unbounded();
     for i in start_ins {
         send.send(*i).unwrap();
     }
 
-    (Box::new(recv), Box::new(send))
+    (recv, send)
 }
 
 pub mod error;

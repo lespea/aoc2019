@@ -1,7 +1,9 @@
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::rc::Rc;
-use std::sync::mpsc::Sender;
+
+use bus::Bus;
+use crossbeam::Sender;
 
 use crate::error::CompError::OutputErr;
 use crate::error::Result;
@@ -61,6 +63,13 @@ impl Output for PrintOutput {
 impl Output for Sender<Bit> {
     fn put_out(&mut self, n: Bit) -> Result<()> {
         self.send(n).map_err(|e| OutputErr(Box::new(e)))
+    }
+}
+
+impl Output for Bus<Bit> {
+    fn put_out(&mut self, n: Bit) -> Result<()> {
+        self.broadcast(n);
+        Ok(())
     }
 }
 
