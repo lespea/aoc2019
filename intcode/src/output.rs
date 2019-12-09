@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::sync::mpsc::Sender;
 
 use crate::error::CompError::OutputErr;
 use crate::error::Result;
@@ -44,6 +45,12 @@ impl Output for PrintOutput {
     fn put_out(&mut self, n: Bit) -> Result<()> {
         println!("{}", n);
         Ok(())
+    }
+}
+
+impl Output for Sender<Bit> {
+    fn put_out(&mut self, n: Bit) -> Result<()> {
+        self.send(n).map_err(|e| OutputErr(Box::new(e)))
     }
 }
 

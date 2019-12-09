@@ -1,3 +1,7 @@
+use crate::input::Input;
+use crate::output::Output;
+use std::sync::mpsc::channel;
+
 pub type Bit = i32;
 
 pub fn bit_from_bool(b: bool) -> Bit {
@@ -6,6 +10,11 @@ pub fn bit_from_bool(b: bool) -> Bit {
     } else {
         0
     }
+}
+
+pub fn chan_pair() -> (Box<dyn Input>, Box<dyn Output>) {
+    let (send, recv) = channel();
+    (Box::new(recv), Box::new(send))
 }
 
 pub mod error;

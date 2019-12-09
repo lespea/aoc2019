@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::mpsc::Receiver;
 
 use crate::error::CompError::{InputErr, InputErrStr};
 use crate::error::Result;
@@ -42,6 +43,12 @@ impl Input for Interactive {
             .with_prompt("Next input number")
             .interact()
             .map_err(|e| InputErr(Box::new(e)))
+    }
+}
+
+impl Input for Receiver<Bit> {
+    fn get_in(&mut self) -> Result<Bit> {
+        self.recv().map_err(|e| InputErr(Box::new(e)))
     }
 }
 
