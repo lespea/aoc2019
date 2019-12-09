@@ -50,25 +50,26 @@ fn part1() {
 
     let mut max = 0;
 
+    const MIN_IN: Bit = 5;
     const MAX_IN: Bit = 5;
 
-    for a in 0..MAX_IN {
-        for b in 0..MAX_IN {
+    for a in MIN_IN..MAX_IN {
+        for b in MIN_IN..MAX_IN {
             if b == a {
                 continue;
             }
 
-            for c in 0..MAX_IN {
+            for c in MIN_IN..MAX_IN {
                 if c == a || c == b {
                     continue;
                 }
 
-                for d in 0..MAX_IN {
+                for d in MIN_IN..MAX_IN {
                     if d == a || d == b || d == c {
                         continue;
                     }
 
-                    for e in 0..MAX_IN {
+                    for e in MIN_IN..MAX_IN {
                         if e == a || e == b || e == c || e == d {
                             continue;
                         }
