@@ -1,7 +1,7 @@
-pub type Bit = i16;
+pub type Bit = i32;
 
-mod error;
+pub mod error;
 
 pub mod computer;
-mod input;
-mod output;
+pub mod input;
+pub mod output;

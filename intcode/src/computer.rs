@@ -1,11 +1,12 @@
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
+use std::path::Path;
 
-use crate::error::CompError::*;
+use crate::Bit;
 use crate::error::{self, Result};
+use crate::error::CompError::*;
 use crate::input::Input;
 use crate::output::Output;
-use crate::Bit;
 
 pub struct Computer {
     pub mem: Vec<Bit>,
@@ -15,6 +16,33 @@ pub struct Computer {
 }
 
 impl Computer {
+    pub fn get_bits<P: AsRef<Path>>(p: P) -> Result<Vec<Vec<Bit>>> {
+        let path = &(*p.as_ref()).to_path_buf();
+
+        let rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_path(p)
+            .map_err(|e| InvalidCsvError(e, path.clone()))?;
+
+        let mut mems = Vec::with_capacity(50);
+
+        for rec in rdr.into_records() {
+            let rec = rec.map_err(|e| InvalidCsvError(e, path.clone()))?;
+
+            let mut mem = Vec::with_capacity(rec.len());
+            for r in rec.iter() {
+                mem.push(
+                    r.parse::<Bit>()
+                        .map_err(|_| InvalidBitStr(r.to_owned(), path.clone()))?,
+                );
+            }
+
+            mems.push(mem);
+        }
+
+        Ok(mems)
+    }
+
     pub fn new(mem: Vec<Bit>, input: Box<dyn Input>, output: Box<dyn Output>) -> Self {
         Computer {
             mem,

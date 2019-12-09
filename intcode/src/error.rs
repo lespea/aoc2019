@@ -1,8 +1,9 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
-use crate::computer::{Cmd, Mode};
 use crate::Bit;
+use crate::computer::{Cmd, Mode};
 
 #[derive(Debug)]
 pub enum CompError {
@@ -16,6 +17,8 @@ pub enum CompError {
     InputErrStr(&'static str),
     OutputErr(Box<dyn std::error::Error>),
     OutputErrStr(&'static str),
+    InvalidCsvError(csv::Error, PathBuf),
+    InvalidBitStr(String, PathBuf),
 }
 
 pub type Result<T> = std::result::Result<T, CompError>;
@@ -60,6 +63,17 @@ impl Display for CompError {
             OutputErrStr(e) => {
                 f.write_fmt(format_args!("There was an issue getting the output: {}", e))
             }
+
+            InvalidCsvError(e, path) => f.write_fmt(format_args!(
+                "There was an issue getting a csv entry from {}: {}",
+                path.display(),
+                e
+            )),
+            InvalidBitStr(s, path) => f.write_fmt(format_args!(
+                "Couldn't convert the bit str {} into a bit in the file {}",
+                s,
+                path.display()
+            )),
         }
     }
 }

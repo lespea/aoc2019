@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
+use crate::Bit;
 use crate::error::CompError::{InputErr, InputErrStr};
 use crate::error::Result;
-use crate::Bit;
 
 pub trait Input {
     fn get_in(&mut self) -> Result<Bit>;
@@ -15,9 +15,9 @@ impl Input for VecDeque<Bit> {
     }
 }
 
-pub struct Sinle(Bit, bool);
+pub struct Single(Bit, bool);
 
-impl Input for Sinle {
+impl Input for Single {
     fn get_in(&mut self) -> Result<Bit> {
         if self.1 {
             Err(InputErrStr(""))
@@ -25,6 +25,12 @@ impl Input for Sinle {
             self.1 = true;
             Ok(self.0)
         }
+    }
+}
+
+impl Single {
+    pub fn new(b: Bit) -> Self {
+        Single(b, false)
     }
 }
 
