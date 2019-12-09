@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ops::DerefMut;
@@ -22,7 +23,7 @@ fn sum(mem: &[Bit], a: Bit, b: Bit, c: Bit, d: Bit, e: Bit) -> Result<Bit> {
     let mut c2 = Computer::new(mem.to_owned(), i2.deref_mut(), o2.deref_mut());
     let mut c3 = Computer::new(mem.to_owned(), i3.deref_mut(), o3.deref_mut());
     let mut c4 = Computer::new(mem.to_owned(), i4.deref_mut(), o4.deref_mut());
-    let mut c5 = Computer::new(mem.to_owned(), i5.deref_mut(), &mut o5);
+    let mut c5 = Computer::new(mem.to_owned(), i5.deref_mut(), o5.borrow_mut());
 
     c1.run()?;
     c2.run()?;
@@ -30,8 +31,11 @@ fn sum(mem: &[Bit], a: Bit, b: Bit, c: Bit, d: Bit, e: Bit) -> Result<Bit> {
     c4.run()?;
     c5.run()?;
 
-    let e = end.borrow()[0];
-    Ok(e)
+    let v = end.borrow();
+    if v.len() != 1 {
+        panic!("Invalid output len");
+    }
+    Ok(v[0])
 }
 
 fn part1() {
