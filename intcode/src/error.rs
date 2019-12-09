@@ -12,6 +12,10 @@ pub enum CompError {
     InvalidInstruction(Bit),
     InvalidMode(u16, u8, u16),
     InvalidOutputMode(usize, Cmd),
+    InputErr(Box<dyn std::error::Error>),
+    InputErrStr(&'static str),
+    OutputErr(Box<dyn std::error::Error>),
+    OutputErrStr(&'static str),
 }
 
 pub type Result<T> = std::result::Result<T, CompError>;
@@ -44,6 +48,18 @@ impl Display for CompError {
             )),
 
             InvalidIndex(idx) => f.write_fmt(format_args!("The current index {} is invalid", idx)),
+
+            InputErr(e) => f.write_fmt(format_args!("There was an issue getting the input: {}", e)),
+            OutputErr(e) => {
+                f.write_fmt(format_args!("There was an issue getting the output: {}", e))
+            }
+
+            InputErrStr(e) => {
+                f.write_fmt(format_args!("There was an issue getting the input: {}", e))
+            }
+            OutputErrStr(e) => {
+                f.write_fmt(format_args!("There was an issue getting the output: {}", e))
+            }
         }
     }
 }

@@ -60,7 +60,7 @@ fn simple() {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}", e);
-            panic!(e)
+            panic!("{}", e)
         }
     };
 
@@ -248,13 +248,13 @@ impl Instruction {
             }
 
             Input => {
-                let ival = comp.input.get_in();
+                let ival = comp.input.get_in()?;
                 self.m1()?.put(comp, ival, self.cmd)?;
             }
 
             Output => {
                 let oval = self.m1()?.get(comp, self.cmd)?;
-                comp.output.put_out(oval);
+                comp.output.put_out(oval)?;
             }
 
             Halt => return Ok(true),
