@@ -2,8 +2,8 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use crate::Bit;
 use crate::computer::{Cmd, Mode};
+use crate::Bit;
 
 #[derive(Debug)]
 pub enum CompError {

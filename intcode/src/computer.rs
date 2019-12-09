@@ -2,11 +2,11 @@ use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
-use crate::Bit;
-use crate::error::{self, Result};
 use crate::error::CompError::*;
+use crate::error::{self, Result};
 use crate::input::Input;
 use crate::output::Output;
+use crate::{bit_from_bool, Bit};
 
 pub struct Computer {
     pub mem: Vec<Bit>,
@@ -158,10 +158,10 @@ impl Mode {
         }
     }
 
-    fn addr(self, comp: &mut Computer, cmd:Cmd) -> Result<usize> {
+    fn addr(self, comp: &mut Computer, cmd: Cmd) -> Result<usize> {
         let idx = comp.idx;
         let addr = self.get(comp, cmd)?;
-        usize::try_from(addr).map_err(|_| InvalidAddress(idx,Some(addr),self,cmd))
+        usize::try_from(addr).map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
     }
 
     fn put(self, comp: &mut Computer, val: Bit, cmd: Cmd) -> Result<()> {
@@ -264,33 +264,34 @@ impl Instruction {
     fn m1(self) -> Result<Mode> {
         Mode::m1(self.raw)
     }
-
     fn m2(self) -> Result<Mode> {
         Mode::m2(self.raw)
     }
-
     fn m3(self) -> Result<Mode> {
         Mode::m3(self.raw)
     }
 
-    fn vals(self, comp: &mut Computer) -> Result<(Bit, Bit)> {
-        Ok((
-            self.m1()?.get(comp, self.cmd)?,
-            self.m2()?.get(comp, self.cmd)?,
-        ))
+    fn get_m1(self, comp: &mut Computer) -> Result<Bit> {
+        self.m1()?.get(comp, self.cmd)
+    }
+    fn get_m2(self, comp: &mut Computer) -> Result<Bit> {
+        self.m2()?.get(comp, self.cmd)
+    }
+    fn put_m3(self, comp: &mut Computer, v: Bit) -> Result<()> {
+        self.m3()?.put(comp, v, self.cmd)
     }
 
     fn step(self, comp: &mut Computer) -> Result<bool> {
         use Cmd::*;
         match self.cmd {
             Add => {
-                let (n1, n2) = self.vals(comp)?;
-                self.m3()?.put(comp, n1 + n2, self.cmd)?;
+                let sum = self.get_m1(comp)? + self.get_m2(comp)?;
+                self.put_m3(comp, sum)?;
             }
 
             Multiply => {
-                let (n1, n2) = self.vals(comp)?;
-                self.m3()?.put(comp, n1 * n2, self.cmd)?;
+                let prod = self.get_m1(comp)? * self.get_m2(comp)?;
+                self.put_m3(comp, prod)?;
             }
 
             Input => {
@@ -299,12 +300,12 @@ impl Instruction {
             }
 
             Output => {
-                let oval = self.m1()?.get(comp, self.cmd)?;
+                let oval = self.get_m1(comp)?;
                 comp.output.put_out(oval)?;
             }
 
             JumpTrue => {
-                let tval = self.m1()?.get(comp, self.cmd)?;
+                let tval = self.get_m1(comp)?;
                 if tval != 0 {
                     let addr = self.m2()?.addr(comp, self.cmd)?;
                     comp.idx = addr;
@@ -314,7 +315,7 @@ impl Instruction {
             }
 
             JumpFalse => {
-                let tval = self.m1()?.get(comp, self.cmd)?;
+                let tval = self.get_m1(comp)?;
                 if tval == 0 {
                     let addr = self.m2()?.addr(comp, self.cmd)?;
                     comp.idx = addr;
@@ -324,13 +325,13 @@ impl Instruction {
             }
 
             LessThan => {
-                let (n1, n2) = self.vals(comp)?;
-                self.m3()?.put(comp, if n1 < n2{1}else {0}, self.cmd)?;
+                let less = self.get_m1(comp)? < self.get_m2(comp)?;
+                self.put_m3(comp, bit_from_bool(less))?;
             }
 
             Equals => {
-                let (n1, n2) = self.vals(comp)?;
-                self.m3()?.put(comp, if n1 == n2{1}else {0}, self.cmd)?;
+                let less = self.get_m1(comp)? == self.get_m2(comp)?;
+                self.put_m3(comp, bit_from_bool(less))?;
             }
 
             Halt => return Ok(true),

@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use crate::Bit;
 use crate::error::CompError::{InputErr, InputErrStr};
 use crate::error::Result;
+use crate::Bit;
 
 pub trait Input {
     fn get_in(&mut self) -> Result<Bit>;

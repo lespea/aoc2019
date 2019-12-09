@@ -1,8 +1,8 @@
 use std::fmt::Write;
 
-use crate::Bit;
-use crate::error::Result;
 use crate::error::CompError::OutputErr;
+use crate::error::Result;
+use crate::Bit;
 
 pub trait Output {
     fn put_out(&mut self, n: Bit) -> Result<()>;
