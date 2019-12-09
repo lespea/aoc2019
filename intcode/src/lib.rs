@@ -2,7 +2,7 @@ use crossbeam::unbounded;
 use crossbeam::Receiver;
 use crossbeam::Sender;
 
-pub type Bit = i32;
+pub type Bit = i64;
 
 pub fn bit_from_bool(b: bool) -> Bit {
     if b {

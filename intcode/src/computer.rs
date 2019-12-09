@@ -11,6 +11,7 @@ use crate::{bit_from_bool, Bit};
 pub struct Computer<'a, 'b> {
     pub mem: Vec<Bit>,
     idx: usize,
+    rel: Bit,
     input: &'a mut dyn Input,
     output: &'b mut dyn Output,
 }
@@ -51,6 +52,7 @@ impl Computer<'_, '_> {
         Computer {
             mem,
             idx: 0,
+            rel: 0,
             input,
             output,
         }
@@ -78,32 +80,11 @@ impl Computer<'_, '_> {
     }
 }
 
-#[test]
-fn simple() {
-    use std::collections::VecDeque;
-
-    let mut cin = VecDeque::new();
-    let mut cout = Vec::with_capacity(5);
-
-    let mut c = Computer::new(vec![1002, 4, 3, 4, 33], &mut cin, &mut cout);
-
-    let steps = match c.run() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("{}", e);
-            panic!("{}", e)
-        }
-    };
-
-    assert_eq!(c.mem, vec![1002, 4, 3, 4, 99]);
-
-    assert_eq!(steps, 2);
-}
-
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 pub enum Mode {
     Immediate,
     Position,
+    Relative,
 }
 
 impl Display for Mode {
@@ -113,6 +94,7 @@ impl Display for Mode {
         f.write_str(match self {
             Immediate => "Immediate",
             Position => "Position",
+            Relative => "Relative",
         })
     }
 }
@@ -120,8 +102,9 @@ impl Display for Mode {
 impl Mode {
     fn g(b: u16, n: u16, pos: u8) -> Result<Self> {
         match (b / n) % 10 {
-            1 => Ok(Mode::Immediate),
             0 => Ok(Mode::Position),
+            1 => Ok(Mode::Immediate),
+            2 => Ok(Mode::Relative),
             _ => Err(InvalidMode(b, pos, n)),
         }
     }
@@ -150,7 +133,17 @@ impl Mode {
 
         match self {
             Mode::Immediate => Ok(addr),
+
             Mode::Position => usize::try_from(addr)
+                .map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
+                .and_then(|new_addr| {
+                    comp.mem
+                        .get(new_addr)
+                        .copied()
+                        .ok_or_else(|| InvalidAddress(idx, Some(addr), self, cmd))
+                }),
+
+            Mode::Relative => usize::try_from(comp.rel + addr)
                 .map_err(|_| InvalidAddress(idx, Some(addr), self, cmd))
                 .and_then(|new_addr| {
                     comp.mem
@@ -204,6 +197,7 @@ pub enum Cmd {
     JumpFalse,
     LessThan,
     Equals,
+    AdjustRel,
     Halt,
 }
 
@@ -220,6 +214,7 @@ impl Display for Cmd {
             JumpFalse => "Jump If False",
             LessThan => "Less Than",
             Equals => "Equals",
+            AdjustRel => "Adjust Relative Base",
             Halt => "Halt",
         })
     }
@@ -255,6 +250,7 @@ impl TryFrom<Bit> for Instruction {
             6 => JumpFalse,
             7 => LessThan,
             8 => Equals,
+            9 => AdjustRel,
             99 => Halt,
             n => return Err(InvalidInstruction(n as Bit)),
         };
@@ -337,6 +333,10 @@ impl Instruction {
                 self.put_m3(comp, bit_from_bool(less))?;
             }
 
+            AdjustRel => {
+                comp.rel += self.get_m1(comp)?;
+            }
+
             Halt => return Ok(true),
         };
 
@@ -347,6 +347,7 @@ impl Instruction {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::collections::VecDeque;
 
     #[test]
     fn mode_m1() {
@@ -354,7 +355,7 @@ mod test {
             assert_eq!(Mode::m1(*n).unwrap(), Mode::Immediate)
         }
 
-        for n in &[000, 001, 010, 1000, 1010, 1011, 11011, 1002] {
+        for n in &[0, 1, 10, 1000, 1010, 1011, 11011, 1002] {
             assert_eq!(Mode::m1(*n).unwrap(), Mode::Position)
         }
     }
@@ -365,7 +366,7 @@ mod test {
             assert_eq!(Mode::m2(*n).unwrap(), Mode::Immediate)
         }
 
-        for n in &[0000, 0001, 0010, 10000, 10100, 10110, 10111] {
+        for n in &[0, 1, 10, 10000, 10100, 10110, 10111] {
             assert_eq!(Mode::m2(*n).unwrap(), Mode::Position)
         }
     }
@@ -376,8 +377,56 @@ mod test {
             assert_eq!(Mode::m3(*n).unwrap(), Mode::Immediate)
         }
 
-        for n in &[00000, 00001, 00010, 00000, 00100, 00110, 01111, 1002] {
+        for n in &[0, 1, 10, 100, 110, 1111, 1002] {
             assert_eq!(Mode::m3(*n).unwrap(), Mode::Position)
         }
+    }
+
+    #[test]
+    fn simple() {
+        use std::collections::VecDeque;
+
+        let mut cin = VecDeque::new();
+        let mut cout = Vec::with_capacity(5);
+
+        let mut c = Computer::new(vec![1002, 4, 3, 4, 33], &mut cin, &mut cout);
+
+        let steps = match c.run() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!("{}", e)
+            }
+        };
+
+        assert_eq!(c.mem, vec![1002, 4, 3, 4, 99]);
+
+        assert_eq!(steps, 2);
+    }
+
+    fn test_proc(code: &[Bit], want: &[Bit]) {
+        let mut cin = VecDeque::new();
+        let mut cout = Vec::with_capacity(want.len());
+
+        Computer::new(code.to_owned(), &mut cin, &mut cout)
+            .run()
+            .unwrap();
+
+        assert_eq!(cout, want);
+    }
+
+    #[test]
+    fn day9_exs() {
+        let same = [
+            109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
+        ];
+        test_proc(&same, &same);
+
+        test_proc(
+            &[1102, 34_915_192, 34_915_192, 7, 4, 7, 99, 0],
+            &[1_219_070_632_396_864],
+        );
+
+        test_proc(&[104, 1_125_899_906_842_624, 99], &[1_125_899_906_842_624]);
     }
 }
