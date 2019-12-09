@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ops::DerefMut;
 use std::rc::Rc;
+use std::time::Instant;
 
 use intcode::computer::Computer;
 use intcode::error::Result;
@@ -53,9 +54,25 @@ fn part1() {
 
     for a in 0..MAX_IN {
         for b in 0..MAX_IN {
+            if b == a {
+                continue;
+            }
+
             for c in 0..MAX_IN {
+                if c == a || c == b {
+                    continue;
+                }
+
                 for d in 0..MAX_IN {
+                    if d == a || d == b || d == c {
+                        continue;
+                    }
+
                     for e in 0..MAX_IN {
+                        if e == a || e == b || e == c || e == d {
+                            continue;
+                        }
+
                         let v = sum(mem, a, b, c, d, e).unwrap();
                         if v > max {
                             max = v;
@@ -124,5 +141,7 @@ fn ex3() {
 }
 
 fn main() {
-    part1()
+    let n = Instant::now();
+    part1();
+    println!("{:?}", Instant::now().duration_since(n))
 }
