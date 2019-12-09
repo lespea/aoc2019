@@ -8,14 +8,14 @@ use crate::input::Input;
 use crate::output::Output;
 use crate::{bit_from_bool, Bit};
 
-pub struct Computer {
+pub struct Computer<'a, 'b> {
     pub mem: Vec<Bit>,
     idx: usize,
-    input: Box<dyn Input>,
-    output: Box<dyn Output>,
+    input: &'a mut dyn Input,
+    output: &'b mut dyn Output,
 }
 
-impl Computer {
+impl Computer<'_, '_> {
     pub fn get_bits<P: AsRef<Path>>(p: P) -> Result<Vec<Vec<Bit>>> {
         let path = &(*p.as_ref()).to_path_buf();
 
@@ -43,7 +43,11 @@ impl Computer {
         Ok(mems)
     }
 
-    pub fn new(mem: Vec<Bit>, input: Box<dyn Input>, output: Box<dyn Output>) -> Self {
+    pub fn new<'pi, 'po>(
+        mem: Vec<Bit>,
+        input: &'pi mut dyn Input,
+        output: &'po mut dyn Output,
+    ) -> Computer<'pi, 'po> {
         Computer {
             mem,
             idx: 0,

@@ -12,8 +12,12 @@ pub fn bit_from_bool(b: bool) -> Bit {
     }
 }
 
-pub fn chan_pair() -> (Box<dyn Input>, Box<dyn Output>) {
+pub fn chan_pair(start_ins: &[Bit]) -> (Box<dyn Input>, Box<dyn Output>) {
     let (send, recv) = channel();
+    for i in start_ins {
+        send.send(*i).unwrap();
+    }
+
     (Box::new(recv), Box::new(send))
 }
 

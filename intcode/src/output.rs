@@ -1,9 +1,11 @@
+use std::cell::RefCell;
 use std::fmt::Write;
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
+use crate::Bit;
 use crate::error::CompError::OutputErr;
 use crate::error::Result;
-use crate::Bit;
 
 pub trait Output {
     fn put_out(&mut self, n: Bit) -> Result<()>;
@@ -12,6 +14,14 @@ pub trait Output {
 impl Output for Vec<Bit> {
     fn put_out(&mut self, n: Bit) -> Result<()> {
         self.push(n);
+        Ok(())
+    }
+}
+
+impl Output for Rc<RefCell<Vec<Bit>>> {
+    fn put_out(&mut self, n: Bit) -> Result<()> {
+        let mut b = self.as_ref().borrow_mut();
+        b.push(n);
         Ok(())
     }
 }
